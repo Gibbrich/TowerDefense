@@ -1,0 +1,7 @@
+CarX unity programmer test job
+
+In this test you are a new (and only) programmer to drive new CarX Tower Defence project. The project in its current state is in this archive. Your first tasks:
+1) add rotation capability (yaw&pitch) with autoaim to a Cannon tower to make it hit monsters; cannon projectile should fly strictly forward from the barrel with optional gravity; projectile speed must remain as is;
+2) make an overall code-review and either correct flaws or describe as they should be corrected.
+
+Thank you and good luck!
