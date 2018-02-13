@@ -1,59 +1,79 @@
 ﻿using UnityEngine;
-using System.Collections;
 using Zenject;
 
-public class Monster : MonoBehaviour
+namespace Game
 {
-    const float REACH_DISTANCE = 0.3f;
-    
-    #region Editor tweakable fields
-    
-    public GameObject m_moveTarget;
-    public float m_speed = 0.1f;
-    public int m_maxHP = 30;
-    
-    #endregion
-    
-    #region Fields
-    
-    [Inject] private Spawner spawner;
-    private int m_hp;
-
-    #endregion
-
-    #region Properties
-    
-    public int Hp
+    public class Monster : MonoBehaviour
     {
-        get { return m_hp; }
-        set { m_hp = value; }
-    }    
+        const float REACH_DISTANCE = 0.3f;
     
-    #endregion
+        #region Editor tweakable fields
+    
+        public float m_speed = 0.1f;
+        public int maxHealth = 30;
+    
+        #endregion
+    
+        #region Fields
+    
+        [Inject] private Spawner spawner;
+        [Inject(Id = "target")] private Vector3 target;
+        
+        private int currentHealth;
 
-    void Start()
-    {
-        Hp = m_maxHP;
+        #endregion
+
+        #region Properties
+    
+        public int CurrentHealth
+        {
+            get { return currentHealth; }
+            set { currentHealth = value; }
+        }    
+    
+        #endregion
+        
+        #region Unity callbacks
+        
+        void Start()
+        {
+            CurrentHealth = maxHealth;
+        }
+
+        void Update()
+        {
+            if (Vector3.Distance(transform.position, target) <= REACH_DISTANCE)
+            {
+                spawner.Release(this);
+                return;
+            }
+
+            var translation = target - transform.position;
+            if (translation.magnitude > m_speed)
+            {
+                translation = translation.normalized * m_speed;
+            }
+            transform.Translate(translation);
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            var projectile = other.GetComponent<BaseProjectile>();
+            if (projectile)
+            {
+                currentHealth -= projectile.Damage;
+
+                if (currentHealth <= 0)
+                {
+                    spawner.Release(this);
+                }                
+            }
+        }
+
+        #endregion
     }
 
-    void Update()
+    public class MonsterFactory: Factory<Monster>
     {
-        if (m_moveTarget == null)
-        {
-            return;
-        }
-
-        if (Vector3.Distance(transform.position, m_moveTarget.transform.position) <= REACH_DISTANCE)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        var translation = m_moveTarget.transform.position - transform.position;
-        if (translation.magnitude > m_speed)
-        {
-            translation = translation.normalized * m_speed;
-        }
-        transform.Translate(translation);
     }
 }

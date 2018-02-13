@@ -1,100 +1,72 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using Game;
+using Gamelogic.Extensions;
 
-public class CannonTower : MonoBehaviour
+public class CannonTower : BaseTower
 {
     #region Editor tweakable fields
-    
-    [SerializeField] private float shootInterval = 0.5f;
-    [SerializeField] private float shootRange = 4f;
-    [SerializeField] private GameObject m_projectilePrefab;
-    
+
+    [SerializeField] protected CannonProjectile projectilePrefab;
+
     #endregion
-    
+
     #region Fields
-    
-    private float lastShotTime;
+
     private GameObject shootPoint;
-    
-    
-    /* todo    - think on better collection
-     * @author - Dvurechenskiyi
-     * @date   - 13.02.2018
-     * @time   - 17:33
-    */    
-    private List<Monster> monsters;
-    
+    private Pool<CannonProjectile> pool;
+
     #endregion
 
     #region Unity callbacks
 
-    private void Start()
+    protected override void Start()
     {
+        base.Start();
+
         shootPoint = new GameObject();
         shootPoint.transform.parent = gameObject.transform;
         shootPoint.transform.localPosition = new Vector3(0, 1.4f, 0);
 
-        monsters = new List<Monster>();
-
-        SphereCollider sphereCollider = gameObject.AddComponent<SphereCollider>();
-        sphereCollider.radius = shootRange;
-    }
-
-    void Update()
-    {
-        if (m_projectilePrefab == null)
-        {
-            return;
-        }
-
-        if (Time.time - lastShotTime >= shootInterval)
-        {
-            foreach (var monster in monsters)
-            {
-                /* todo    - use FirstOrderIntercept
-                 * @author - Dvurechenskiyi
-                 * @date   - 13.02.2018
-                 * @time   - 17:34
-                */
-                if (Vector3.Distance(transform.position, monster.transform.position) > shootRange)
-                {
-                    continue;
-                }    
-
-                // shot
-                Instantiate(m_projectilePrefab, shootPoint.transform.position, shootPoint.transform.rotation);
-
-                lastShotTime = Time.time;
-            }
-        }
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-        Monster monster = other.GetComponent<Monster>();
-        if (monster != null)
-        {
-            monsters.Add(monster);
-        }
-    }
-
-    private void OnTriggerExit(Collider other)
-    {
-        Monster monster = other.GetComponent<Monster>();
-        if (monster != null)
-        {
-            monsters.Remove(monster);
-        }
+        pool = new Pool<CannonProjectile>(10,
+                                          () => Instantiate(projectilePrefab, shootPoint.transform.position,
+                                                            shootPoint.transform.rotation),
+                                          projectile => Destroy(projectile.gameObject),
+                                          projectile => projectile.gameObject.SetActive(true),
+                                          projectile => projectile.gameObject.SetActive(false));
     }
 
     #endregion
-    
+
+    #region Private methods
+
+    protected override void Shoot(Monster monster)
+    {
+        pool.GetNewObjectSilently(10);
+    }
+
+    protected override bool CheckDistance(Monster monster)
+    {
+        /* todo    - use FirstOrderIntercept
+         * @author - Dvurechenskiyi
+         * @date   - 13.02.2018
+         * @time   - 17:34
+        */
+        return Vector3.Distance(transform.position, monster.transform.position) <= shootRange;
+    }
+
+    protected override BaseProjectile GetProjectilePrefab()
+    {
+        return projectilePrefab;
+    }
+
+    #endregion
 
 
     //first-order intercept using absolute target position
     public static Vector3 FirstOrderIntercept(Vector3 shooterPosition, Vector3 shooterVelocity, float shotSpeed,
-        Vector3 targetPosition, Vector3 targetVelocity)
+                                              Vector3 targetPosition, Vector3 targetVelocity)
     {
         Vector3 targetRelativePosition = targetPosition - shooterPosition;
         Vector3 targetRelativeVelocity = targetVelocity - shooterVelocity;
@@ -103,7 +75,8 @@ public class CannonTower : MonoBehaviour
     }
 
     //first-order intercept using relative target position
-    public static float FirstOrderInterceptTime(float shotSpeed, Vector3 targetRelativePosition, Vector3 targetRelativeVelocity)
+    public static float FirstOrderInterceptTime(float shotSpeed, Vector3 targetRelativePosition,
+                                                Vector3 targetRelativeVelocity)
     {
         float velocitySquared = targetRelativeVelocity.sqrMagnitude;
         if (velocitySquared < 0.001f)
@@ -140,7 +113,6 @@ public class CannonTower : MonoBehaviour
                 {
                     return t1; //only t1 is positive
                 }
-
             }
             else
             {

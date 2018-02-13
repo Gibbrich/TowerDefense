@@ -1,14 +1,12 @@
 ﻿using UnityEngine;
 using System.Collections;
+using Game;
 
-public class CannonProjectile : MonoBehaviour
+public class CannonProjectile : BaseProjectile
 {
-    public float m_speed = 0.2f;
-    public int m_damage = 10;
-
     void Update()
     {
-        var translation = transform.forward * m_speed;
+        var translation = transform.forward * speed;
         transform.Translate(translation);
     }
 
@@ -17,12 +15,5 @@ public class CannonProjectile : MonoBehaviour
         var monster = other.gameObject.GetComponent<Monster>();
         if (monster == null)
             return;
-
-        monster.Hp -= m_damage;
-        if (monster.Hp <= 0)
-        {
-            Destroy(monster.gameObject);
-        }
-        Destroy(gameObject);
     }
 }

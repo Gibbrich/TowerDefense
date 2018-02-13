@@ -1,38 +1,73 @@
 ﻿using UnityEngine;
 using System.Collections;
+using Game;
+using Gamelogic.Extensions;
+using Zenject;
 
 public class Spawner : MonoBehaviour
 {
     #region Editor tweakable fields
-    
-    [SerializeField] private float m_interval = 3;
-    [SerializeField] private GameObject m_moveTarget;
-    
+
+    [SerializeField] private float interval = 3;
+
     #endregion
-    
+
     #region Fields
-    
-    private float m_lastSpawn = -1;
-    
+
+    private float lastSpawnTime;
+    private Pool<Monster> pool;
+
     #endregion
 
     #region Unity callbacks
-    
+
     void Update()
     {
-        if (Time.time > m_lastSpawn + m_interval)
+        if (Time.time - lastSpawnTime < interval)
         {
-            var newMonster = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            var r = newMonster.AddComponent<Rigidbody>();
-            r.useGravity = false;
-            newMonster.transform.position = transform.position;
-            var monsterBeh = newMonster.AddComponent<Monster>();
-            monsterBeh.m_moveTarget = m_moveTarget;
-
-            m_lastSpawn = Time.time;
+            if (!pool.IsObjectAvailable)
+            {
+                pool.IncCapacity(10);
+            }
+            pool.GetNewObject();
+            
+            lastSpawnTime = Time.time;
         }
+    }
+
+    #endregion
+    
+    #region Public methods
+
+    public void Release(Monster monster)
+    {
+        pool.Release(monster);
     }
     
     #endregion
 
+    #region Private methods
+
+    [Inject]
+    private void Init(MonsterFactory factory)
+    {
+        pool = new Pool<Monster>(10,
+                                 factory.Create,
+                                 monster => Destroy(monster.gameObject),
+                                 MonsterWakeUp,
+                                 MonsterSetToSleep);
+    }
+
+    private void MonsterWakeUp(Monster monster)
+    {
+        monster.gameObject.transform.position = transform.position;
+        monster.gameObject.SetActive(true);
+    }
+
+    private void MonsterSetToSleep(Monster monster)
+    {
+        monster.gameObject.SetActive(false);
+    }
+
+    #endregion
 }

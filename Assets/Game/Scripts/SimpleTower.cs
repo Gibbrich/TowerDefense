@@ -1,31 +1,54 @@
 ﻿using UnityEngine;
 using System.Collections;
+using Game;
+using Gamelogic.Extensions;
 
-public class SimpleTower : MonoBehaviour {
-	public float m_shootInterval = 0.5f;
-	public float m_range = 4f;
-	public GameObject m_projectilePrefab;
+public class SimpleTower : BaseTower
+{
+    #region Editor tweakable fields
 
-	private float m_lastShotTime = -0.5f;
-	
-	void Update () {
-		if (m_projectilePrefab == null)
-			return;
+    [SerializeField] protected GuidedProjectile projectilePrefab;
 
-		foreach (var monster in FindObjectsOfType<Monster>()) {
-			if (Vector3.Distance (transform.position, monster.transform.position) > m_range)
-				continue;
+    #endregion
 
-			if (m_lastShotTime + m_shootInterval > Time.time)
-				continue;
+    #region Private fields
 
-			// shot
-			var projectile = Instantiate(m_projectilePrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity) as GameObject;
-			var projectileBeh = projectile.GetComponent<GuidedProjectile> ();
-			projectileBeh.m_target = monster.gameObject;
+    private Pool<GuidedProjectile> pool;
+    
+    #endregion
 
-			m_lastShotTime = Time.time;
-		}
-	
-	}
+    #region Unity callbacks
+
+    protected override void Start()
+    {
+        base.Start();
+
+        pool = new Pool<GuidedProjectile>(10,
+                                          () => Instantiate(projectilePrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity),
+                                          projectile => Destroy(projectile.gameObject),
+                                          projectile => projectile.gameObject.SetActive(true),
+                                          projectile => projectile.gameObject.SetActive(false));
+    }
+
+    #endregion
+
+    #region Private methods
+
+    protected override void Shoot(Monster monster)
+    {
+        GuidedProjectile projectile = pool.GetNewObjectSilently(10);
+        projectile.m_target = monster.gameObject;
+    }
+
+    protected override bool CheckDistance(Monster monster)
+    {
+        return Vector3.Distance(transform.position, monster.transform.position) <= shootRange;
+    }
+
+    protected override BaseProjectile GetProjectilePrefab()
+    {
+        return projectilePrefab;
+    }
+
+    #endregion
 }
