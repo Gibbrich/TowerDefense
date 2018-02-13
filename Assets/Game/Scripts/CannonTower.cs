@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class CannonTower : MonoBehaviour
 {
@@ -13,8 +14,16 @@ public class CannonTower : MonoBehaviour
     
     #region Fields
     
-    private float lastShotTime = -0.5f;
-    private GameObject shootPoint;   
+    private float lastShotTime;
+    private GameObject shootPoint;
+    
+    
+    /* todo    - think on better collection
+     * @author - Dvurechenskiyi
+     * @date   - 13.02.2018
+     * @time   - 17:33
+    */    
+    private List<Monster> monsters;
     
     #endregion
 
@@ -25,30 +34,60 @@ public class CannonTower : MonoBehaviour
         shootPoint = new GameObject();
         shootPoint.transform.parent = gameObject.transform;
         shootPoint.transform.localPosition = new Vector3(0, 1.4f, 0);
+
+        monsters = new List<Monster>();
+
+        SphereCollider sphereCollider = gameObject.AddComponent<SphereCollider>();
+        sphereCollider.radius = shootRange;
     }
 
     void Update()
     {
-        if (m_projectilePrefab == null || shootPoint == null)
+        if (m_projectilePrefab == null)
         {
             return;
         }
 
-        foreach (var monster in FindObjectsOfType<Monster>())
+        if (Time.time - lastShotTime >= shootInterval)
         {
-            if (Vector3.Distance(transform.position, monster.transform.position) > shootRange)
-                continue;
+            foreach (var monster in monsters)
+            {
+                /* todo    - use FirstOrderIntercept
+                 * @author - Dvurechenskiyi
+                 * @date   - 13.02.2018
+                 * @time   - 17:34
+                */
+                if (Vector3.Distance(transform.position, monster.transform.position) > shootRange)
+                {
+                    continue;
+                }    
 
-            if (lastShotTime + shootInterval > Time.time)
-                continue;
+                // shot
+                Instantiate(m_projectilePrefab, shootPoint.transform.position, shootPoint.transform.rotation);
 
-            // shot
-            Instantiate(m_projectilePrefab, shootPoint.transform.position, shootPoint.transform.rotation);
-
-            lastShotTime = Time.time;
+                lastShotTime = Time.time;
+            }
         }
     }
-    
+
+    private void OnTriggerEnter(Collider other)
+    {
+        Monster monster = other.GetComponent<Monster>();
+        if (monster != null)
+        {
+            monsters.Add(monster);
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        Monster monster = other.GetComponent<Monster>();
+        if (monster != null)
+        {
+            monsters.Remove(monster);
+        }
+    }
+
     #endregion
     
 
