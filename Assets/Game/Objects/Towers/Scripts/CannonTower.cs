@@ -8,42 +8,11 @@ public class CannonTower : BaseTower
 {
     #region Editor tweakable fields
 
-    [SerializeField] protected CannonProjectile projectilePrefab;
+    [SerializeField] private CannonProjectile projectilePrefab;
 
     #endregion
-
-    #region Fields
-
-    private GameObject shootPoint;
-    private Pool<CannonProjectile> pool;
-
-    #endregion
-
-    #region Unity callbacks
-
-    protected override void Start()
-    {
-        base.Start();
-
-        shootPoint = new GameObject();
-        shootPoint.transform.parent = gameObject.transform;
-        shootPoint.transform.localPosition = new Vector3(0, 1.4f, 0);
-
-        pool = new Pool<CannonProjectile>(10,
-                                          () => BaseProjectile.Create(projectilePrefab, shootPoint.transform.position, this),
-                                          projectile => Destroy(projectile.gameObject),
-                                          projectile => projectile.gameObject.SetActive(true),
-                                          projectile => projectile.gameObject.SetActive(false));
-    }
-
-    #endregion
-
+    
     #region Private methods
-
-    public override void ReleaseProjectile(BaseProjectile projectile)
-    {
-        pool.Release(projectile as CannonProjectile);
-    }
 
     protected override void Shoot(Monster monster)
     {

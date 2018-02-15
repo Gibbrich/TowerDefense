@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using Zenject;
 
 namespace Game
@@ -11,6 +12,7 @@ namespace Game
     
         public float m_speed = 0.1f;
         public int maxHealth = 30;
+        public event Action<Monster> Death = monster => { }; 
     
         #endregion
     
@@ -37,7 +39,7 @@ namespace Game
         
         private void Start()
         {
-            CurrentHealth = maxHealth;
+            Refresh();
         }
 
         private void Update()
@@ -66,10 +68,24 @@ namespace Game
                 if (currentHealth <= 0)
                 {
                     spawner.Release(this);
+                    Death(this);
                 }                
             }
         }
 
+        #endregion
+        
+        #region Public methods
+
+        /// <summary>
+        /// As we use Object pool pattern, we need refresh game object's state before reuse it.
+        /// </summary>
+        public void Refresh()
+        {
+            CurrentHealth = maxHealth;
+            transform.position = spawner.transform.position;
+        }
+        
         #endregion
         
         #region Private methods

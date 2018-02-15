@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Game;
@@ -12,6 +13,7 @@ public abstract class BaseTower : MonoBehaviour
     
     [SerializeField] protected float shootInterval = 0.5f;
     [SerializeField] protected float shootRange = 4f;
+    [SerializeField] private GameObject shootSocket;
     
     #endregion
     
@@ -26,7 +28,9 @@ public abstract class BaseTower : MonoBehaviour
     */
     private List<Monster> monsters;
 
-    protected GameObject projectilesParent;
+    private GameObject projectilesParent;
+    
+    protected Pool<BaseProjectile> pool;
 
     #endregion
     
@@ -41,9 +45,15 @@ public abstract class BaseTower : MonoBehaviour
 
         SphereCollider sphereCollider = gameObject.AddComponent<SphereCollider>();
         sphereCollider.radius = shootRange;
+        
+        pool = new Pool<BaseProjectile>(10,
+                                        () => BaseProjectile.Create(GetProjectilePrefab(), shootSocket.transform.position, projectilesParent.transform, this),
+                                        projectile => Destroy(projectile.gameObject),
+                                        ProjectileWakeUp,
+                                        projectile => projectile.gameObject.SetActive(false));
     }
 
-    private void Update()
+    protected virtual void Update()
     {
         if (GetProjectilePrefab() == null)
         {
@@ -68,6 +78,7 @@ public abstract class BaseTower : MonoBehaviour
         if (monster != null)
         {
             monsters.Add(monster);
+            monster.Death += OnMonsterDeath;
         }
     }
 
@@ -77,18 +88,38 @@ public abstract class BaseTower : MonoBehaviour
         if (monster != null)
         {
             monsters.Remove(monster);
+            monster.Death -= OnMonsterDeath;
         }
+    }
+
+    private void OnDestroy()
+    {
+        monsters.ForEach(monster => monster.Death -= OnMonsterDeath);
+    }
+
+    #endregion
+    
+    #region Public methods
+
+    public void ReleaseProjectile(BaseProjectile projectile)
+    {
+        pool.Release(projectile);
     }
     
     #endregion
     
-    #region Public methods
-    
-    public abstract void ReleaseProjectile(BaseProjectile projectile);    
-    
-    #endregion
-    
     #region Private methods
+
+    private void ProjectileWakeUp(BaseProjectile projectile)
+    {
+        projectile.transform.position = shootSocket.transform.position;
+        projectile.gameObject.SetActive(true);
+    }
+    
+    private void OnMonsterDeath(Monster monster)
+    {
+        monsters.Remove(monster);
+    }
 
     protected abstract void Shoot(Monster monster);
 

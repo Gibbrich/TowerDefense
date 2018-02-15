@@ -58,7 +58,7 @@ public class Spawner : MonoBehaviour
 
     private void MonsterWakeUp(Monster monster)
     {
-        monster.gameObject.transform.position = transform.position;
+        monster.Refresh();
         monster.gameObject.SetActive(true);
     }
 

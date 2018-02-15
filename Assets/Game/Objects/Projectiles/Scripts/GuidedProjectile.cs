@@ -24,13 +24,6 @@ namespace Game
             }
             transform.Translate(translation);
         }
-
-        void OnTriggerEnter(Collider other)
-        {
-            var monster = other.gameObject.GetComponent<Monster>();
-            if (monster == null)
-                return;
-        }
         
         #endregion
     }

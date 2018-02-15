@@ -7,41 +7,15 @@ public class SimpleTower : BaseTower
 {
     #region Editor tweakable fields
 
-    [SerializeField] protected GuidedProjectile projectilePrefab;
-
-    #endregion
-
-    #region Private fields
-
-    private Pool<GuidedProjectile> pool;
-    
-    #endregion
-
-    #region Unity callbacks
-
-    protected override void Start()
-    {
-        base.Start();
-
-        pool = new Pool<GuidedProjectile>(10,
-                                          () => BaseProjectile.Create(projectilePrefab, transform.position + Vector3.up * 1.5f, this),
-                                          projectile => Destroy(projectile.gameObject),
-                                          projectile => projectile.gameObject.SetActive(true),
-                                          projectile => projectile.gameObject.SetActive(false));
-    }
+    [SerializeField] private GuidedProjectile projectilePrefab;
 
     #endregion
 
     #region Private methods
 
-    public override void ReleaseProjectile(BaseProjectile projectile)
-    {
-        pool.Release(projectile as GuidedProjectile);
-    }
-
     protected override void Shoot(Monster monster)
     {
-        GuidedProjectile projectile = pool.GetNewObjectSilently(10);
+        GuidedProjectile projectile = pool.GetNewObjectSilently(10) as GuidedProjectile;
         projectile.m_target = monster.gameObject;
     }
 
