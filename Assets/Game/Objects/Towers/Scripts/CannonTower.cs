@@ -30,8 +30,7 @@ public class CannonTower : BaseTower
         shootPoint.transform.localPosition = new Vector3(0, 1.4f, 0);
 
         pool = new Pool<CannonProjectile>(10,
-                                          () => Instantiate(projectilePrefab, shootPoint.transform.position,
-                                                            shootPoint.transform.rotation),
+                                          () => BaseProjectile.Create(projectilePrefab, shootPoint.transform.position, this),
                                           projectile => Destroy(projectile.gameObject),
                                           projectile => projectile.gameObject.SetActive(true),
                                           projectile => projectile.gameObject.SetActive(false));
@@ -40,6 +39,11 @@ public class CannonTower : BaseTower
     #endregion
 
     #region Private methods
+
+    public override void ReleaseProjectile(BaseProjectile projectile)
+    {
+        pool.Release(projectile as CannonProjectile);
+    }
 
     protected override void Shoot(Monster monster)
     {

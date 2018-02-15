@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using Game;
+using Gamelogic.Extensions;
 using UnityEngine;
 
 public abstract class BaseProjectile : MonoBehaviour
@@ -11,6 +12,8 @@ public abstract class BaseProjectile : MonoBehaviour
     [SerializeField] protected int damage = 10;
     
     #endregion
+
+    protected BaseTower tower;
     
     #region Properties
     
@@ -25,14 +28,19 @@ public abstract class BaseProjectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.GetComponent<Monster>())
-        {
-            /* todo    - implement
-             * @author - Артур
-             * @date   - 13.02.2018
-             * @time   - 21:07
-            */            
-        }
+        tower.ReleaseProjectile(this);
+    }
+
+    #endregion
+    
+    #region Public methods
+
+    public static T Create<T>(T prefab, Vector3 position, BaseTower tower) where T : BaseProjectile
+    {
+        T projectile = Instantiate(prefab, position, Quaternion.identity);
+        projectile.tower = tower;
+
+        return projectile;
     }
 
     #endregion

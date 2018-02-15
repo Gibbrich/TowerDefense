@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Gamelogic.Extensions;
+using UnityEngine;
 
 namespace Game
 {
@@ -6,6 +7,8 @@ namespace Game
     {
         public GameObject m_target;
 
+        #region Unity callbacks
+        
         void Update()
         {
             if (m_target == null)
@@ -28,5 +31,7 @@ namespace Game
             if (monster == null)
                 return;
         }
+        
+        #endregion
     }
 }

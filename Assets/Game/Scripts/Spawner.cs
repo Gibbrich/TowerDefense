@@ -4,6 +4,9 @@ using Game;
 using Gamelogic.Extensions;
 using Zenject;
 
+/// <summary>
+/// Spawner does not contains Monster prefab for extension purposes, i.e. gamedesigner may set different rules/monster types. Thus, Monster prefab should be set up in SceneContext.
+/// </summary>
 public class Spawner : MonoBehaviour
 {
     #region Editor tweakable fields
@@ -23,14 +26,9 @@ public class Spawner : MonoBehaviour
 
     void Update()
     {
-        if (Time.time - lastSpawnTime < interval)
+        if (Time.time - lastSpawnTime >= interval)
         {
-            if (!pool.IsObjectAvailable)
-            {
-                pool.IncCapacity(10);
-            }
-            pool.GetNewObject();
-            
+            pool.GetNewObjectSilently(10);
             lastSpawnTime = Time.time;
         }
     }

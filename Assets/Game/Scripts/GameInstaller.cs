@@ -4,22 +4,19 @@ using Game;
 using UnityEngine;
 using Zenject;
 
+/// <summary>
+/// This class defines game rules for current scene. Provides required dependencies for other classes.
+/// </summary>
 public class GameInstaller : MonoInstaller
 {
     #region Editor tweakable fields
 
-    [SerializeField] private Vector3 target;
     [SerializeField] private Monster monsterPrefab;
 
     #endregion
 
     public override void InstallBindings()
     {
-        Container
-            .BindInstance(target)
-            .WithId("target")
-            .AsSingle();
-
         Container
             .BindFactory<Monster, MonsterFactory>()
             .FromComponentInNewPrefab(monsterPrefab)

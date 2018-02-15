@@ -16,8 +16,8 @@ namespace Game
     
         #region Fields
     
-        [Inject] private Spawner spawner;
-        [Inject(Id = "target")] private Vector3 target;
+        private Spawner spawner;
+        private Vector3 target;
         
         private int currentHealth;
 
@@ -35,12 +35,12 @@ namespace Game
         
         #region Unity callbacks
         
-        void Start()
+        private void Start()
         {
             CurrentHealth = maxHealth;
         }
 
-        void Update()
+        private void Update()
         {
             if (Vector3.Distance(transform.position, target) <= REACH_DISTANCE)
             {
@@ -70,6 +70,18 @@ namespace Game
             }
         }
 
+        #endregion
+        
+        #region Private methods
+
+        [Inject]
+        private void Init([Inject(Id = "target")] Transform transformTarget,
+                          [Inject] Spawner spawner)
+        {
+            target = transformTarget.position;
+            this.spawner = spawner;
+        }        
+        
         #endregion
     }
 

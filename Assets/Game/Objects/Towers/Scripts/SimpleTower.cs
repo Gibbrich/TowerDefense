@@ -24,7 +24,7 @@ public class SimpleTower : BaseTower
         base.Start();
 
         pool = new Pool<GuidedProjectile>(10,
-                                          () => Instantiate(projectilePrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity),
+                                          () => BaseProjectile.Create(projectilePrefab, transform.position + Vector3.up * 1.5f, this),
                                           projectile => Destroy(projectile.gameObject),
                                           projectile => projectile.gameObject.SetActive(true),
                                           projectile => projectile.gameObject.SetActive(false));
@@ -33,6 +33,11 @@ public class SimpleTower : BaseTower
     #endregion
 
     #region Private methods
+
+    public override void ReleaseProjectile(BaseProjectile projectile)
+    {
+        pool.Release(projectile as GuidedProjectile);
+    }
 
     protected override void Shoot(Monster monster)
     {

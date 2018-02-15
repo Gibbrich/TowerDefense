@@ -26,6 +26,8 @@ public abstract class BaseTower : MonoBehaviour
     */
     private List<Monster> monsters;
 
+    protected GameObject projectilesParent;
+
     #endregion
     
     #region Unity callbacks
@@ -33,6 +35,9 @@ public abstract class BaseTower : MonoBehaviour
     protected virtual void Start()
     {
         monsters = new List<Monster>();
+
+        projectilesParent = new GameObject("Projectiles");
+        projectilesParent.transform.parent = transform;
 
         SphereCollider sphereCollider = gameObject.AddComponent<SphereCollider>();
         sphereCollider.radius = shootRange;
@@ -74,6 +79,12 @@ public abstract class BaseTower : MonoBehaviour
             monsters.Remove(monster);
         }
     }
+    
+    #endregion
+    
+    #region Public methods
+    
+    public abstract void ReleaseProjectile(BaseProjectile projectile);    
     
     #endregion
     
