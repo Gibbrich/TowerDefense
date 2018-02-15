@@ -50,12 +50,7 @@ namespace Game
                 return;
             }
 
-            var translation = target - transform.position;
-            if (translation.magnitude > m_speed)
-            {
-                translation = translation.normalized * m_speed;
-            }
-            transform.Translate(translation);
+            transform.Translate(GetVelocity());
         }
 
         private void OnTriggerEnter(Collider other)
@@ -84,6 +79,16 @@ namespace Game
         {
             CurrentHealth = maxHealth;
             transform.position = spawner.transform.position;
+        }
+
+        public Vector3 GetVelocity()
+        {
+            var translation = target - transform.position;
+            if (translation.magnitude > m_speed)
+            {
+                translation = translation.normalized * m_speed;
+            }
+            return translation;
         }
         
         #endregion

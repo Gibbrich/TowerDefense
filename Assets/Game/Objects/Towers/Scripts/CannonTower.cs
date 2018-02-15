@@ -1,6 +1,8 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Game;
 using Gamelogic.Extensions;
 
@@ -12,7 +14,105 @@ public class CannonTower : BaseTower
 
     #endregion
     
+    #region Fields
+
+    private Monster target;
+    
+    #endregion
+    
+    #region Unity callbacks
+
+    protected override void Update()
+    {
+        base.Update();
+
+        if (target)
+        {
+            Vector3 targetPositionInTheSamePlane = new Vector3(target.transform.position.x, transform.position.y, target.transform.position.z);
+            transform.LookAt(targetPositionInTheSamePlane);
+        }
+    }
+
+    protected override void OnTriggerEnter(Collider other)
+    {
+        base.OnTriggerEnter(other);
+
+        Monster monster = other.GetComponent<Monster>();
+        if (other.GetComponent<Monster>() && target == null)
+        {
+            target = monster;
+        }
+    }
+
+    protected override void OnTriggerExit(Collider other)
+    {
+        base.OnTriggerExit(other);
+        
+        Monster monster = other.GetComponent<Monster>();
+        if (other.GetComponent<Monster>() && target == monster)
+        {
+            SetTarget();
+        }
+    }
+
+    #endregion
+    
     #region Private methods
+
+    private void SetTarget()
+    {
+        target = monsters[GetTargetId()];
+    }
+
+    private int GetTargetId()
+    {
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            // find, whether cannon is ready to shoot
+            float remainedCooldown = 0f;
+        
+            if (Time.time - lastShotTime < shootInterval)
+            {
+                remainedCooldown = shootInterval - (Time.time - lastShotTime);
+            }
+        
+            Monster monster = monsters[i];
+
+            // if cannon is ready to shoot, calculate intercept position. 
+            // If intercept position is in shoot range, return it, otherwise return Vector3.zero
+            if (Math.Abs(remainedCooldown) < 0.01f)
+            {
+                Vector3 interceptPosition = FirstOrderIntercept(shootSocket.transform.position, Vector3.zero, projectilePrefab.Speed, monster.transform.position, monster.GetVelocity());
+
+                // If intercept position is in shoot range, return it, otherwise return Vector3.zero
+                if (Vector3.Distance(transform.position, interceptPosition) <= shootRange)
+                {
+                    return i;
+                }
+            }
+            else
+            {
+                // otherwise, cannon is on cooldown, so we need calculate monster future position.
+                Vector3 futurePosition = monster.transform.position + monster.GetVelocity() * remainedCooldown;
+            
+                /* todo    - in future shootSocket position will change, as cannon rotates. Fix it
+                 * @author - Dvurechenskiyi
+                 * @date   - 15.02.2018
+                 * @time   - 16:28
+                */
+                Vector3 interceptPosition = FirstOrderIntercept(shootSocket.transform.position, Vector3.zero,
+                    projectilePrefab.Speed, futurePosition, monster.GetVelocity());
+
+                // If intercept position is in shoot range, return it, otherwise return Vector3.zero
+                if (Vector3.Distance(transform.position, interceptPosition) <= shootRange)
+                {
+                    return i;
+                }
+            }
+        }
+
+        return 0;
+    }
 
     protected override void Shoot(Monster monster)
     {
@@ -41,9 +141,9 @@ public class CannonTower : BaseTower
     public static Vector3 FirstOrderIntercept(Vector3 shooterPosition, Vector3 shooterVelocity, float shotSpeed,
                                               Vector3 targetPosition, Vector3 targetVelocity)
     {
-        Vector3 targetRelativePosition = targetPosition - shooterPosition;
+        float t = CalculateInterceptTime(shooterPosition, shooterVelocity, shotSpeed, targetPosition,
+            targetVelocity);
         Vector3 targetRelativeVelocity = targetVelocity - shooterVelocity;
-        float t = FirstOrderInterceptTime(shotSpeed, targetRelativePosition, targetRelativeVelocity);
         return targetPosition + t * targetRelativeVelocity;
     }
 
@@ -102,5 +202,13 @@ public class CannonTower : BaseTower
             //determinant = 0; one intercept path, pretty much never happens
             return Mathf.Max(-b / (2f * a), 0f); //don't shoot back in time
         }
+    }
+
+    public static float CalculateInterceptTime(Vector3 shooterPosition, Vector3 shooterVelocity, float shotSpeed,
+        Vector3 targetPosition, Vector3 targetVelocity)
+    {
+        Vector3 targetRelativePosition = targetPosition - shooterPosition;
+        Vector3 targetRelativeVelocity = targetVelocity - shooterVelocity;
+        return FirstOrderInterceptTime(shotSpeed, targetRelativePosition, targetRelativeVelocity);
     }
 }

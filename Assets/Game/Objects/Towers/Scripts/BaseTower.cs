@@ -13,20 +13,20 @@ public abstract class BaseTower : MonoBehaviour
     
     [SerializeField] protected float shootInterval = 0.5f;
     [SerializeField] protected float shootRange = 4f;
-    [SerializeField] private GameObject shootSocket;
+    [SerializeField] protected GameObject shootSocket;
     
     #endregion
     
     #region Private fields
 
-    private float lastShotTime;
+    protected float lastShotTime;
     
     /* todo    - think on better collection
      * @author - Dvurechenskiyi
      * @date   - 13.02.2018
      * @time   - 17:33
     */
-    private List<Monster> monsters;
+    protected List<Monster> monsters;
 
     private GameObject projectilesParent;
     
@@ -72,7 +72,7 @@ public abstract class BaseTower : MonoBehaviour
         }
     }
     
-    private void OnTriggerEnter(Collider other)
+    protected virtual void OnTriggerEnter(Collider other)
     {
         Monster monster = other.GetComponent<Monster>();
         if (monster != null)
@@ -82,7 +82,7 @@ public abstract class BaseTower : MonoBehaviour
         }
     }
 
-    private void OnTriggerExit(Collider other)
+    protected virtual void OnTriggerExit(Collider other)
     {
         Monster monster = other.GetComponent<Monster>();
         if (monster != null)

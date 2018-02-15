@@ -18,9 +18,9 @@ namespace Game
             }
 
             var translation = m_target.transform.position - transform.position;
-            if (translation.magnitude > speed)
+            if (translation.magnitude > Speed)
             {
-                translation = translation.normalized * speed;
+                translation = translation.normalized * Speed;
             }
             transform.Translate(translation);
         }

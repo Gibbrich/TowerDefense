@@ -8,7 +8,7 @@ public class CannonProjectile : BaseProjectile
     
     void Update()
     {
-        var translation = transform.forward * speed;
+        var translation = transform.forward * Speed;
         transform.Translate(translation);
     }
     

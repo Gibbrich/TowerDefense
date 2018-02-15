@@ -20,8 +20,13 @@ public abstract class BaseProjectile : MonoBehaviour
     public int Damage
     {
         get { return damage; }
-    }    
-    
+    }
+
+    public float Speed
+    {
+        get { return speed; }
+    }
+
     #endregion
     
     #region Unity callbacks
