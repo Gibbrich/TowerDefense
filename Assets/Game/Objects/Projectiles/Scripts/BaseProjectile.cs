@@ -33,7 +33,10 @@ public abstract class BaseProjectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        tower.ReleaseProjectile(this);
+        if (other.GetComponent<Monster>())
+        {
+            tower.ReleaseProjectile(this);
+        }
     }
 
     #endregion
@@ -42,7 +45,7 @@ public abstract class BaseProjectile : MonoBehaviour
 
     public static T Create<T>(T prefab, Vector3 position, Transform parent, BaseTower tower) where T : BaseProjectile
     {
-        T projectile = Instantiate(prefab, position, Quaternion.identity, parent);
+        T projectile = Instantiate(prefab, position, Quaternion.identity/*, parent*/);
         projectile.tower = tower;
 
         return projectile;

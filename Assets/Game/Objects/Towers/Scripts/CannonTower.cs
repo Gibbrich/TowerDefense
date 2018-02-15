@@ -16,6 +16,7 @@ public class CannonTower : BaseTower
     
     #region Fields
 
+    private Vector3 advance;
     private Monster target;
     
     #endregion
@@ -28,8 +29,13 @@ public class CannonTower : BaseTower
 
         if (target)
         {
-            Vector3 targetPositionInTheSamePlane = new Vector3(target.transform.position.x, transform.position.y, target.transform.position.z);
-            transform.LookAt(targetPositionInTheSamePlane);
+            /* todo    - aim to target + advance
+             * @author - Артур
+             * @date   - 15.02.2018
+             * @time   - 22:20
+            */
+            
+            transform.LookAt(target.transform.position + advance);
         }
     }
 
@@ -37,10 +43,9 @@ public class CannonTower : BaseTower
     {
         base.OnTriggerEnter(other);
 
-        Monster monster = other.GetComponent<Monster>();
-        if (other.GetComponent<Monster>() && target == null)
+        if (other.GetComponent<Monster>())
         {
-            target = monster;
+            SetTarget();
         }
     }
 
@@ -48,8 +53,7 @@ public class CannonTower : BaseTower
     {
         base.OnTriggerExit(other);
         
-        Monster monster = other.GetComponent<Monster>();
-        if (other.GetComponent<Monster>() && target == monster)
+        if (other.GetComponent<Monster>())
         {
             SetTarget();
         }
@@ -61,10 +65,16 @@ public class CannonTower : BaseTower
 
     private void SetTarget()
     {
-        target = monsters[GetTargetId()];
+        /* todo    - target must be future target position instead of monster
+         * @author - Артур
+         * @date   - 15.02.2018
+         * @time   - 22:44
+        */
+        advance = GetAdvance();
+        advance.y = 0;
     }
 
-    private int GetTargetId()
+    private Vector3 GetAdvance()
     {
         for (int i = 0; i < monsters.Count; i++)
         {
@@ -87,7 +97,8 @@ public class CannonTower : BaseTower
                 // If intercept position is in shoot range, return it, otherwise return Vector3.zero
                 if (Vector3.Distance(transform.position, interceptPosition) <= shootRange)
                 {
-                    return i;
+                    target = monster;
+                    return interceptPosition;
                 }
             }
             else
@@ -106,17 +117,19 @@ public class CannonTower : BaseTower
                 // If intercept position is in shoot range, return it, otherwise return Vector3.zero
                 if (Vector3.Distance(transform.position, interceptPosition) <= shootRange)
                 {
-                    return i;
+                    target = monster;
+                    return interceptPosition;
                 }
             }
         }
 
-        return 0;
+        return Vector3.zero;
     }
 
     protected override void Shoot(Monster monster)
     {
-        pool.GetNewObjectSilently(10);
+        CannonProjectile projectile = pool.GetNewObjectSilently() as CannonProjectile;
+        projectile.SetDirection(shootSocket.transform.forward);
     }
 
     protected override bool CheckDistance(Monster monster)

@@ -4,19 +4,28 @@ using Game;
 
 public class CannonProjectile : BaseProjectile
 {
-    #region Unity callbacks
+    #region Private fields
+
+    private Vector3 direction;
     
+    #endregion
+    
+    #region Unity callbacks
+
     void Update()
     {
-        var translation = transform.forward * Speed;
+        var translation = direction * Speed;
         transform.Translate(translation);
     }
     
     #endregion
     
     #region Public methods
-    
-        
+
+    public void SetDirection(Vector3 direction)
+    {
+        this.direction = direction;
+    }
     
     #endregion
 }
