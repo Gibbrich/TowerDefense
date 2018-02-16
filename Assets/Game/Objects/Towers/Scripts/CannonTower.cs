@@ -59,6 +59,11 @@ public class CannonTower : BaseTower
         }
     }
 
+    private void OnDrawGizmos()
+    {
+        Debug.DrawRay(shootSocket.transform.position, transform.forward * 10, Color.blue);
+    }
+
     #endregion
     
     #region Private methods
@@ -70,11 +75,11 @@ public class CannonTower : BaseTower
          * @date   - 15.02.2018
          * @time   - 22:44
         */
-        advance = GetAdvance();
-        advance.y = 0;
+        Vector3 interceptPoint = GetInterceptPoint();
+        advance = interceptPoint - target.transform.position;
     }
 
-    private Vector3 GetAdvance()
+    private Vector3 GetInterceptPoint()
     {
         for (int i = 0; i < monsters.Count; i++)
         {

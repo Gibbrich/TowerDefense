@@ -17,14 +17,19 @@ public class CannonProjectile : BaseProjectile
         var translation = direction * Speed;
         transform.Translate(translation);
     }
-    
+
+    private void OnDrawGizmos()
+    {
+//        Debug.DrawRay(transform.position, transform.forward * 10, Color.yellow);
+    }
+
     #endregion
     
     #region Public methods
 
     public void SetDirection(Vector3 direction)
     {
-        this.direction = direction;
+        this.direction = direction.normalized;
     }
     
     #endregion
