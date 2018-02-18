@@ -5,24 +5,37 @@ namespace Game
 {
     public class GuidedProjectile : BaseProjectile
     {
-        public GameObject m_target;
-
+        #region Private fields
+        
+        private GameObject target;
+        
+        #endregion
+        
         #region Unity callbacks
         
         void Update()
         {
-            if (m_target == null)
+            if (target == null || !target.activeSelf)
             {
-                Destroy(gameObject);
+                tower.ReleaseProjectile(this);
                 return;
             }
 
-            var translation = m_target.transform.position - transform.position;
+            var translation = target.transform.position - transform.position;
             if (translation.magnitude > Speed)
             {
                 translation = translation.normalized * Speed;
             }
             transform.Translate(translation);
+        }
+        
+        #endregion
+        
+        #region Public methods
+
+        public void SetTarget(GameObject target)
+        {
+            this.target = target;
         }
         
         #endregion

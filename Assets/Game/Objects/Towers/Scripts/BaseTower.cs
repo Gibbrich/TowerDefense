@@ -21,17 +21,10 @@ public abstract class BaseTower : MonoBehaviour
     #region Private fields
 
     protected float lastShotTime;
-    
-    /* todo    - think on better collection
-     * @author - Dvurechenskiyi
-     * @date   - 13.02.2018
-     * @time   - 17:33
-    */
     protected List<Monster> monsters;
+    protected Pool<BaseProjectile> pool;
 
     private GameObject projectilesParent;
-    
-    protected Pool<BaseProjectile> pool;
 
     #endregion
     
@@ -41,8 +34,11 @@ public abstract class BaseTower : MonoBehaviour
     {
         monsters = new List<Monster>();
 
-        projectilesParent = new GameObject("Projectiles");
-        projectilesParent.transform.parent = transform;
+        projectilesParent = GameObject.Find("Projectiles");
+        if (projectilesParent == null)
+        {
+            projectilesParent = new GameObject("Projectiles");
+        }
 
         SphereCollider sphereCollider = gameObject.AddComponent<SphereCollider>();
         sphereCollider.radius = shootRange;
@@ -52,25 +48,6 @@ public abstract class BaseTower : MonoBehaviour
                                         projectile => Destroy(projectile.gameObject),
                                         ProjectileWakeUp,
                                         projectile => projectile.gameObject.SetActive(false));
-    }
-
-    protected virtual void Update()
-    {
-        if (GetProjectilePrefab() == null)
-        {
-            return;
-        }
-
-        Monster monster = monsters
-            .SkipWhile(_ => Time.time - lastShotTime < shootInterval)
-            .Where(CheckDistance)
-            .FirstOrDefault();
-
-        if (monster != null)
-        {
-            Shoot(monster);
-            lastShotTime = Time.time;
-        }
     }
     
     protected virtual void OnTriggerEnter(Collider other)
@@ -114,6 +91,7 @@ public abstract class BaseTower : MonoBehaviour
     private void ProjectileWakeUp(BaseProjectile projectile)
     {
         projectile.transform.position = shootSocket.transform.position;
+        projectile.Refresh();
         projectile.gameObject.SetActive(true);
     }
     
@@ -121,10 +99,6 @@ public abstract class BaseTower : MonoBehaviour
     {
         monsters.Remove(monster);
     }
-
-    protected abstract void Shoot(Monster monster);
-
-    protected abstract bool CheckDistance(Monster monster);
 
     protected abstract BaseProjectile GetProjectilePrefab();
 

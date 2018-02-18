@@ -1,232 +1,264 @@
-﻿using System;
-using UnityEngine;
-using System.Collections;
+﻿﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using Game;
 using Gamelogic.Extensions;
+using UnityEngine;
 
-public class CannonTower : BaseTower
+namespace Game
 {
-    #region Editor tweakable fields
-
-    [SerializeField] private CannonProjectile projectilePrefab;
-
-    #endregion
-    
-    #region Fields
-
-    private Vector3 advance;
-    private Monster target;
-    
-    #endregion
-    
-    #region Unity callbacks
-
-    protected override void Update()
+    public class CannonTower : BaseTower
     {
-        base.Update();
-
-        if (target)
-        {
-            /* todo    - aim to target + advance
-             * @author - Артур
-             * @date   - 15.02.2018
-             * @time   - 22:20
-            */
-            
-            transform.LookAt(target.transform.position + advance);
-        }
-    }
-
-    protected override void OnTriggerEnter(Collider other)
-    {
-        base.OnTriggerEnter(other);
-
-        if (other.GetComponent<Monster>())
-        {
-            SetTarget();
-        }
-    }
-
-    protected override void OnTriggerExit(Collider other)
-    {
-        base.OnTriggerExit(other);
+        #region Editor tweakable fields
         
-        if (other.GetComponent<Monster>())
+        [Tooltip("Tower head, rotates around Y-axis")] 
+        [SerializeField]
+        private Transform turretTower;
+
+        [Tooltip("Tower cannon, rotates around X-axis")]
+        [SerializeField]
+        private Transform turretGun;
+
+        [Tooltip("Head and cannon rotation speed, degree/sec")] 
+        [SerializeField]
+        private int rotationSpeed;
+
+        [SerializeField] private CannonProjectile projectile;
+        
+        #endregion
+        
+        #region Private fields
+        
+        private Monster target;
+
+        // Shooting point. By default equals target 
+        private Vector3 targetingPosition;
+        private StateMachine<TurretState> stateMachine;
+        
+        #endregion
+
+        #region Unity callbacks
+        
+        protected override void Start()
         {
-            SetTarget();
+            base.Start();
+
+            stateMachine = new StateMachine<TurretState>();
+            stateMachine.AddState(TurretState.IDLE, null, IdleOnUpdate);
+            stateMachine.AddState(TurretState.ATTACK, null, AttackOnUpdate);
+            stateMachine.CurrentState = TurretState.IDLE;
+
+            monsters = new List<Monster>();
         }
-    }
 
-    private void OnDrawGizmos()
-    {
-        Debug.DrawRay(shootSocket.transform.position, transform.forward * 10, Color.blue);
-    }
+        private void Update()
+        {
+            stateMachine.Update();
+        }
 
-    #endregion
-    
-    #region Private methods
+        void OnDrawGizmos()
+        {
+            Gizmos.DrawWireSphere(transform.position, shootRange);
+            //Current cannon direction
+            Debug.DrawRay(turretGun.position, turretGun.forward * shootRange, Color.blue);
+            //Target cannon direction
+            Debug.DrawRay(turretGun.position, (targetingPosition - turretGun.position), Color.yellow);
+            //Current tower direction
+            Debug.DrawRay(turretTower.position, turretTower.forward * shootRange, Color.red);
+        }
 
-    private void SetTarget()
-    {
-        /* todo    - target must be future target position instead of monster
-         * @author - Артур
-         * @date   - 15.02.2018
-         * @time   - 22:44
-        */
-        Vector3 interceptPoint = GetInterceptPoint();
-        advance = interceptPoint - target.transform.position;
-    }
+        protected override void OnTriggerEnter(Collider other)
+        {
+            base.OnTriggerEnter(other);
 
-    private Vector3 GetInterceptPoint()
-    {
-        for (int i = 0; i < monsters.Count; i++)
+            Monster monster = other.GetComponent<Monster>();
+            if (monster != null)
+            {
+                SearchTarget();
+            }
+        }
+
+        protected override void OnTriggerExit(Collider other)
+        {
+            base.OnTriggerExit(other);
+
+            Monster monster = other.GetComponent<Monster>();
+            if (monster != null)
+            {
+                SearchTarget();
+            }
+        }
+
+        #endregion
+
+        #region Private methods
+
+        private void Shoot()
+        {
+            //5 degrees gap - for inaccurace calculations 
+            bool isCannonRotatedToTarget =
+                Vector3.Angle(turretGun.forward, targetingPosition - turretGun.position) <= 5;
+
+            if (Time.time - lastShotTime >= shootInterval && isCannonRotatedToTarget)
+            {
+                CannonProjectile cannonProjectile = pool.GetNewObjectSilently() as CannonProjectile;
+                cannonProjectile.transform.position = turretGun.position;
+                cannonProjectile.transform.rotation =
+                    Quaternion.FromToRotation(projectile.transform.forward, turretGun.forward);
+
+                lastShotTime = Time.time;
+            }
+        }
+
+        protected override BaseProjectile GetProjectilePrefab()
+        {
+            return projectile;
+        }
+
+        private void SearchTarget()
         {
             // find, whether cannon is ready to shoot
-            float remainedCooldown = 0f;
-        
+            float timeToNextShot = 0f;
+
             if (Time.time - lastShotTime < shootInterval)
             {
-                remainedCooldown = shootInterval - (Time.time - lastShotTime);
+                timeToNextShot = shootInterval - (Time.time - lastShotTime);
             }
-        
-            Monster monster = monsters[i];
 
-            // if cannon is ready to shoot, calculate intercept position. 
-            // If intercept position is in shoot range, return it, otherwise return Vector3.zero
-            if (Math.Abs(remainedCooldown) < 0.01f)
+            Monster target = null;
+
+            for (int i = 0; i < monsters.Count; i++)
             {
-                Vector3 interceptPosition = FirstOrderIntercept(shootSocket.transform.position, Vector3.zero, projectilePrefab.Speed, monster.transform.position, monster.GetVelocity());
+                Vector3 monsterPositionBeforeShoot =
+                    monsters[i].GetSpeed() * timeToNextShot + monsters[i].transform.position;
+                Vector3 advance = CalculateAdvance(monsterPositionBeforeShoot, monsters[i].GetSpeed());
 
-                // If intercept position is in shoot range, return it, otherwise return Vector3.zero
-                if (Vector3.Distance(transform.position, interceptPosition) <= shootRange)
+                if (Vector3.Distance(transform.position, advance) <= shootRange)
                 {
-                    target = monster;
-                    return interceptPosition;
+                    target = monsters[i];
+                    break;
+                }
+            }
+
+            this.target = target;
+            if (target != null)
+            {
+                if (stateMachine.CurrentState != TurretState.ATTACK)
+                {
+                    stateMachine.CurrentState = TurretState.ATTACK;
                 }
             }
             else
             {
-                // otherwise, cannon is on cooldown, so we need calculate monster future position.
-                Vector3 futurePosition = monster.transform.position + monster.GetVelocity() * remainedCooldown;
-            
-                /* todo    - in future shootSocket position will change, as cannon rotates. Fix it
-                 * @author - Dvurechenskiyi
-                 * @date   - 15.02.2018
-                 * @time   - 16:28
-                */
-                Vector3 interceptPosition = FirstOrderIntercept(shootSocket.transform.position, Vector3.zero,
-                    projectilePrefab.Speed, futurePosition, monster.GetVelocity());
-
-                // If intercept position is in shoot range, return it, otherwise return Vector3.zero
-                if (Vector3.Distance(transform.position, interceptPosition) <= shootRange)
-                {
-                    target = monster;
-                    return interceptPosition;
-                }
+                stateMachine.CurrentState = TurretState.IDLE;
             }
         }
 
-        return Vector3.zero;
-    }
-
-    protected override void Shoot(Monster monster)
-    {
-        CannonProjectile projectile = pool.GetNewObjectSilently() as CannonProjectile;
-        projectile.SetDirection(shootSocket.transform.forward);
-    }
-
-    protected override bool CheckDistance(Monster monster)
-    {
-        /* todo    - use FirstOrderIntercept
-         * @author - Dvurechenskiyi
-         * @date   - 13.02.2018
-         * @time   - 17:34
-        */
-        return Vector3.Distance(transform.position, monster.transform.position) <= shootRange;
-    }
-
-    protected override BaseProjectile GetProjectilePrefab()
-    {
-        return projectilePrefab;
-    }
-
-    #endregion
-
-
-    //first-order intercept using absolute target position
-    public static Vector3 FirstOrderIntercept(Vector3 shooterPosition, Vector3 shooterVelocity, float shotSpeed,
-                                              Vector3 targetPosition, Vector3 targetVelocity)
-    {
-        float t = CalculateInterceptTime(shooterPosition, shooterVelocity, shotSpeed, targetPosition,
-            targetVelocity);
-        Vector3 targetRelativeVelocity = targetVelocity - shooterVelocity;
-        return targetPosition + t * targetRelativeVelocity;
-    }
-
-    //first-order intercept using relative target position
-    public static float FirstOrderInterceptTime(float shotSpeed, Vector3 targetRelativePosition,
-                                                Vector3 targetRelativeVelocity)
-    {
-        float velocitySquared = targetRelativeVelocity.sqrMagnitude;
-        if (velocitySquared < 0.001f)
+        private Vector3 CalculateAdvance(Vector3 monsterPosition, Vector3 monsterSpeed)
         {
-            return 0f;
+            float dist = (turretGun.position - monsterPosition).magnitude;
+            float timeToTarget = dist / projectile.Speed;
+            return monsterPosition + monsterSpeed * timeToTarget;
         }
 
-        float a = velocitySquared - shotSpeed * shotSpeed;
-
-        //handle similar velocities
-        if (Mathf.Abs(a) < 0.001f)
+        protected virtual Vector3 CalculateAim()
         {
-            float doubleProduct = 2f * Vector3.Dot(targetRelativeVelocity, targetRelativePosition);
-            float t = -targetRelativePosition.sqrMagnitude / doubleProduct;
-            return Mathf.Max(t, 0f); //don't shoot back in time
-        }
+            //По умолчанию турель стреляет прямо по цели, но, если цель движется, то нужно высчитать точку,
+            //которая находится перед движущейся целью и по которой будет стрелять турель.
+            //То есть турель должна стрелять на опережение
+            targetingPosition = target.transform.position;
 
-        float b = 2f * Vector3.Dot(targetRelativeVelocity, targetRelativePosition);
-        float c = targetRelativePosition.sqrMagnitude;
-        float determinant = b * b - 4f * a * c;
-
-        if (determinant > 0f)
-        {
-            //determinant > 0; two intercept paths (most common)
-            float t1 = (-b + Mathf.Sqrt(determinant)) / (2f * a),
-                t2 = (-b - Mathf.Sqrt(determinant)) / (2f * a);
-            if (t1 > 0f)
+            //Высчитываем точку, перед мишенью, по которой нужно произвести выстрел, чтобы попасть по движущейся мишени
+            //по идее, чем больше итераций, тем точнее будет положение точки для упреждающего выстрела
+            for (int i = 0; i < 10; i++)
             {
-                if (t2 > 0f)
-                {
-                    return Mathf.Min(t1, t2); //both are positive
-                }
-                else
-                {
-                    return t1; //only t1 is positive
-                }
+                float dist = (turretGun.position - targetingPosition).magnitude;
+                float timeToTarget = dist / projectile.Speed;
+                targetingPosition = target.transform.position + target.GetSpeed() * timeToTarget;
+            }
+
+            return targetingPosition;
+        }
+
+        private void IdleOnUpdate()
+        {
+            if (turretTower.rotation != Quaternion.identity)
+            {
+                RotateTower(Vector3.zero);
+            }
+
+            if (turretGun.rotation != Quaternion.identity)
+            {
+                RotateGun(Vector3.zero);
+            }
+        }
+
+        private void AttackOnUpdate()
+        {
+            if (target == null || !target.gameObject.activeSelf)
+            {
+                stateMachine.CurrentState = TurretState.IDLE;
             }
             else
             {
-                return Mathf.Max(t2, 0f); //don't shoot back in time
+                TurnTurret();
+                Shoot();
             }
         }
-        else if (determinant < 0f)
+
+        private void TurnTurret()
         {
-            //determinant < 0; no intercept path
-            return 0f;
+            //Получаем точку, по которой нужно произвести выстрел, чтобы попасть по движущейся цели
+            targetingPosition = CalculateAim();
+
+            //поворот башни к цели
+            Vector3 directionTurretToTarget = targetingPosition - turretTower.position;
+            //Вращение идет вокруг оси Y, поэтому вектор направления между целью и башней турели 
+            //должен находится в горизонтальной плоскости
+            directionTurretToTarget.y = 0;
+            RotateTower(directionTurretToTarget);
+
+            //наведение пушки на цель
+            float d = Vector3.Distance(targetingPosition, turretGun.position);
+            //Находим направление от точки вращения пушки к точке, на высоте которой находится цель
+            //минус высота, на которой находится turretGun, иначе турель будет стрелять выше цели
+            Vector3 directionToTarget = new Vector3(turretGun.forward.x, 0, turretGun.forward.z) * d
+                                        + new Vector3(0, targetingPosition.y, 0)
+                                        - new Vector3(0, turretGun.position.y, 0);
+            RotateGun(directionToTarget);
         }
-        else
+
+        private void RotateGun(Vector3 directionToTarget)
         {
-            //determinant = 0; one intercept path, pretty much never happens
-            return Mathf.Max(-b / (2f * a), 0f); //don't shoot back in time
+            Quaternion rotateQuaternionGun = Quaternion.LookRotation(directionToTarget);
+            float angleGun = Quaternion.Angle(turretGun.rotation, rotateQuaternionGun);
+            turretGun.rotation = Quaternion.Slerp(
+                turretGun.rotation,
+                rotateQuaternionGun,
+                Mathf.Min(1f, Time.deltaTime * rotationSpeed / angleGun)
+            );
         }
+
+        private void RotateTower(Vector3 directionToTarget)
+        {
+            Quaternion rotateQuaternion = Quaternion.LookRotation(directionToTarget);
+            //Для вращения используется Quaternion.Slerp, 3-ий параметр, которой лежит в промежутке [0,1] включительно.
+            //Чтобы вращение происходило с одинайковой скоростью, нужно расчитать значение, 
+            //на которое надо поворачивать турель каждый кадр.
+            //Получаем угол, на который должна повернуться башня
+            float angle = Quaternion.Angle(turretTower.localRotation, rotateQuaternion);
+            turretTower.localRotation = Quaternion.Slerp(
+                turretTower.localRotation,
+                rotateQuaternion,
+                //высчитываем на сколько должна провернуться башня в течение одного кадра
+                Mathf.Min(1f, Time.deltaTime * rotationSpeed / angle)
+            );
+        }
+
+        #endregion
     }
 
-    public static float CalculateInterceptTime(Vector3 shooterPosition, Vector3 shooterVelocity, float shotSpeed,
-        Vector3 targetPosition, Vector3 targetVelocity)
+    public enum TurretState
     {
-        Vector3 targetRelativePosition = targetPosition - shooterPosition;
-        Vector3 targetRelativeVelocity = targetVelocity - shooterVelocity;
-        return FirstOrderInterceptTime(shotSpeed, targetRelativePosition, targetRelativeVelocity);
+        IDLE,
+        ATTACK
     }
 }

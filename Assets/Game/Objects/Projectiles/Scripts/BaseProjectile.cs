@@ -13,7 +13,7 @@ public abstract class BaseProjectile : MonoBehaviour
     
     #endregion
 
-    private BaseTower tower;
+    protected BaseTower tower;
     
     #region Properties
     
@@ -45,11 +45,19 @@ public abstract class BaseProjectile : MonoBehaviour
 
     public static T Create<T>(T prefab, Vector3 position, Transform parent, BaseTower tower) where T : BaseProjectile
     {
-        T projectile = Instantiate(prefab, position, Quaternion.identity/*, parent*/);
+        T projectile = Instantiate(prefab, position, Quaternion.identity, parent);
         projectile.tower = tower;
 
         return projectile;
     }
 
+    #endregion
+    
+    #region Private methods
+
+    public virtual void Refresh()
+    {
+    }
+    
     #endregion
 }

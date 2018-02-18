@@ -1,35 +1,42 @@
-﻿using UnityEngine;
-using System.Collections;
-using Game;
+﻿﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class CannonProjectile : BaseProjectile
 {
-    #region Private fields
-
-    private Vector3 direction;
+    #region Editor tweakable fields
+    
+    [SerializeField] private float selfDestroyCountDown = 5f;        
     
     #endregion
     
+    #region Private fields
+
+    private float time;
+    
+    #endregion
+        
     #region Unity callbacks
-
-    void Update()
+    
+    private void Update()
     {
-        var translation = direction * Speed;
-        transform.Translate(translation);
+        if (Time.time - time >= selfDestroyCountDown)
+        {
+            tower.ReleaseProjectile(this);
+        }
+        else
+        {
+            transform.position += transform.forward * speed * Time.deltaTime;
+        }
     }
-
-    private void OnDrawGizmos()
-    {
-//        Debug.DrawRay(transform.position, transform.forward * 10, Color.yellow);
-    }
-
+    
     #endregion
     
     #region Public methods
 
-    public void SetDirection(Vector3 direction)
+    public override void Refresh()
     {
-        this.direction = direction.normalized;
+        time = Time.time;
     }
     
     #endregion

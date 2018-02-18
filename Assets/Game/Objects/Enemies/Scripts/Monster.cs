@@ -10,17 +10,17 @@ namespace Game
     
         #region Editor tweakable fields
     
-        public float m_speed = 0.1f;
-        public int maxHealth = 30;
-        public event Action<Monster> Death = monster => { }; 
+        [SerializeField] private float speed = 0.1f;
+        [SerializeField] private int maxHealth = 30;
     
         #endregion
     
         #region Fields
+        
+        public event Action<Monster> Death = monster => { }; 
     
         private Spawner spawner;
         private Vector3 target;
-        
         private int currentHealth;
 
         // used for speed calculation
@@ -34,7 +34,7 @@ namespace Game
         public int CurrentHealth
         {
             get { return currentHealth; }
-            set { currentHealth = value; }
+            private set { currentHealth = value; }
         }    
     
         #endregion
@@ -56,7 +56,13 @@ namespace Game
                 return;
             }
 
-            transform.Translate(GetVelocity());
+            var translation = target - transform.position;
+            if (translation.magnitude > speed)
+            {
+                translation = translation.normalized * speed;
+            }
+            
+            transform.Translate(translation);
         }
 
         private void LateUpdate()
@@ -90,16 +96,6 @@ namespace Game
         {
             CurrentHealth = maxHealth;
             transform.position = spawner.transform.position;
-        }
-
-        public Vector3 GetVelocity()
-        {
-            var translation = target - transform.position;
-            if (translation.magnitude > m_speed)
-            {
-                translation = translation.normalized * m_speed;
-            }
-            return translation;
         }
 
         public Vector3 GetSpeed()
