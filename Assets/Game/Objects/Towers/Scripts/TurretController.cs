@@ -17,50 +17,30 @@ namespace Game
 		public float visionRadius = 10;
 		//Скорость поворота турели к цели
 		public int rotationSpeed;
-		//Тег, который присвоен объектам, являющимися потенциальными целям для турели
-		public string enemyTag = "Enemy";
 		//Префаб снаряда
 		public GameObject projectile;
 		//скорость снаряда
 		public int projectileSpeed = 10;
-		private bool allowFire = true;
 		//Периодичность стрельбы
 		public float fireRate = 1.0f;
-		//Турель будет самостоятельно выбирать ближайшую цель для атаки,
-		//поиск цели будет осуществлен с помощью корутина 1 раз в searchTimeDelay секунд
-		private float searchTimeDelay = 1f;
+
 		//Текущая цель турели
-		private Transform target;
-		//Предыдущее положение цели
-		private Vector3 previousTargetPosition;
-		//Скорость цели
-		private Vector3 targetSpeed;
-		//возможные состояния турели
-		protected enum TurretState
-		{
-			Idle,		//состояние покоя
-			Attack,		//цель найдена, атакуем
-		}
-		//начальное и текущее состояние
-		protected TurretState state = TurretState.Idle;
+		private Monster target;
+		
 		//Точка, по которой будет стрелять турель в случае обнаружения цели, по умолчанию это сама цель
 		private Vector3 targetingPosition;
-		private float sqrVisionRadius;
-
+		
 		private StateMachine<TurretState> stateMachine;
 		private float lastShotTime;
 		private float lastSearchTime;
 		private List<Monster> monsters;
 
 		public virtual void Start()
-		{
-			//радиус обзора в квадрате, используется в FindClosestTarget;
-			sqrVisionRadius = visionRadius * visionRadius;			
-			
+		{			
 			stateMachine = new StateMachine<TurretState>();
-			stateMachine.AddState(TurretState.Idle, null, IdleOnUpdate);
-			stateMachine.AddState(TurretState.Attack, null, AttackOnUpdate);
-			stateMachine.CurrentState = TurretState.Idle;
+			stateMachine.AddState(TurretState.IDLE, null, IdleOnUpdate);
+			stateMachine.AddState(TurretState.ATTACK, null, AttackOnUpdate);
+			stateMachine.CurrentState = TurretState.IDLE;
 
 			monsters = new List<Monster>();
 		}
@@ -69,36 +49,6 @@ namespace Game
 
 			stateMachine.Update();
 		}
-
-		public virtual void LateUpdate() {
-			if (stateMachine.CurrentState == TurretState.Attack)
-			{
-				//В конце каждого кадра высчитываем скорость цели
-				targetSpeed = (target.position - previousTargetPosition) / Time.deltaTime;
-			}
-		}
-
-		//состояние покоя
-		protected virtual IEnumerator Idle()
-		{
-			//Перешли в состояние покоя, при необходимости можно сделать дополнительные действия
-			//yield return null;
-
-			//Пока цель не найдена, турель, например, может просто вращаться по сторонам - для красоты
-			while(!target)
-			{
-				yield return null;
-			}
-			//Покидаем цикл как только была найдена цель, перед переходом в состояние атаки
-			//можем выполнить еще какие-то действия и поставить нужную задержку
-			//yield return null;
-
-			//Переводим турель в состоянии атаки
-			state = TurretState.Attack;
-			//yield return null;
-		}
-
-		
 
 		//Для удобства - в окне редактора покажем радиус поражения турели и некоторые дополнительные данные
 		void OnDrawGizmos() 
@@ -156,7 +106,7 @@ namespace Game
 				timeToNextShot = fireRate - (Time.time - lastShotTime);
 			}
 
-			Transform target = null;
+			Monster target = null;
 			
 			for (int i = 0; i < monsters.Count; i++)
 			{
@@ -165,7 +115,7 @@ namespace Game
 
 				if (Vector3.Distance(transform.position, advance) <= visionRadius)
 				{
-					target = monsters[i].transform;
+					target = monsters[i];
 					break;
 				}
 			}
@@ -173,14 +123,14 @@ namespace Game
 			this.target = target;
 			if (target != null)
 			{
-				if (stateMachine.CurrentState != TurretState.Attack)
+				if (stateMachine.CurrentState != TurretState.ATTACK)
 				{
-					stateMachine.CurrentState = TurretState.Attack;
+					stateMachine.CurrentState = TurretState.ATTACK;
 				}
 			}
 			else
 			{
-				stateMachine.CurrentState = TurretState.Idle;
+				stateMachine.CurrentState = TurretState.IDLE;
 			}
 		}
 
@@ -195,14 +145,14 @@ namespace Game
 			//По умолчанию турель стреляет прямо по цели, но, если цель движется, то нужно высчитать точку,
 			//которая находится перед движущейся целью и по которой будет стрелять турель.
 			//То есть турель должна стрелять на опережение
-			targetingPosition = target.position;
+			targetingPosition = target.transform.position;
 
 			//Высчитываем точку, перед мишенью, по которой нужно произвести выстрел, чтобы попасть по движущейся мишени
 			//по идее, чем больше итераций, тем точнее будет положение точки для упреждающего выстрела
 			for (int i = 0; i < 10; i++) {
 				float dist = (turretGun.position - targetingPosition).magnitude;
 				float timeToTarget = dist / projectileSpeed;
-				targetingPosition = target.position + targetSpeed * timeToTarget;
+				targetingPosition = target.transform.position + target.GetSpeed() * timeToTarget;
 			}
 
 			return targetingPosition;
@@ -210,20 +160,8 @@ namespace Game
 
 		private void IdleOnUpdate()
 		{
-			float angle = Quaternion.Angle(turretHead.localRotation, Quaternion.identity);
-			turretHead.localRotation = Quaternion.Slerp(
-				turretHead.localRotation,
-				Quaternion.identity,
-				//высчитываем на сколько должна провернуться башня в течение одного кадра
-				Mathf.Min(1f, Time.deltaTime * rotationSpeed / angle)
-			);
-			
-			float angleGun = Quaternion.Angle(turretGun.rotation, Quaternion.identity);
-			turretGun.rotation = Quaternion.Slerp(
-				turretGun.rotation,
-				Quaternion.identity,
-				Mathf.Min(1f, Time.deltaTime * rotationSpeed / angleGun)
-			);
+			RotateTower(Vector3.zero);
+			RotateGun(Vector3.zero);
 		}
 
 		private void AttackOnUpdate()
@@ -251,9 +189,6 @@ namespace Game
 
 		private void TurnTurret()
 		{
-			//Каждый кадр сохраняем текущее положение цели
-			previousTargetPosition = target.position;
-			
 			//Получаем точку, по которой нужно произвести выстрел, чтобы попасть по движущейся цели
 			targetingPosition = CalculateAim();
 
@@ -262,7 +197,32 @@ namespace Game
 			//Вращение идет вокруг оси Y, поэтому вектор направления между целью и башней турели 
 			//должен находится в горизонтальной плоскости
 			directionTurretToTarget.y = 0;
-			Quaternion rotateQuaternion = Quaternion.LookRotation(directionTurretToTarget);
+			RotateTower(directionTurretToTarget);
+
+			//наведение пушки на цель
+			float d = Vector3.Distance(targetingPosition, turretGun.position);
+			//Находим направление от точки вращения пушки к точке, на высоте которой находится цель
+			//минус высота, на которой находится turretGun, иначе турель будет стрелять выше цели
+			Vector3 directionToTarget = new Vector3(turretGun.forward.x, 0, turretGun.forward.z) * d
+			                            + new Vector3(0, targetingPosition.y, 0) 
+			                            - new Vector3(0, turretGun.position.y, 0);
+			RotateGun(directionToTarget);
+		}
+
+		private void RotateGun(Vector3 directionToTarget)
+		{
+			Quaternion rotateQuaternionGun = Quaternion.LookRotation(directionToTarget);
+			float angleGun = Quaternion.Angle(turretGun.rotation, rotateQuaternionGun);
+			turretGun.rotation = Quaternion.Slerp(
+				turretGun.rotation,
+				rotateQuaternionGun,
+				Mathf.Min(1f, Time.deltaTime * rotationSpeed / angleGun)
+			);
+		}
+
+		private void RotateTower(Vector3 directionToTarget)
+		{
+			Quaternion rotateQuaternion = Quaternion.LookRotation(directionToTarget);
 			//Для вращения используется Quaternion.Slerp, 3-ий параметр, которой лежит в промежутке [0,1] включительно.
 			//Чтобы вращение происходило с одинайковой скоростью, нужно расчитать значение, 
 			//на которое надо поворачивать турель каждый кадр.
@@ -274,23 +234,14 @@ namespace Game
 				//высчитываем на сколько должна провернуться башня в течение одного кадра
 				Mathf.Min(1f, Time.deltaTime * rotationSpeed / angle)
 			);
-
-			//наведение пушки на цель
-			float d = Vector3.Distance(targetingPosition, turretGun.position);
-			//Находим направление от точки вращения пушки к точке, на высоте которой находится цель
-			//минус высота, на которой находится turretGun, иначе турель будет стрелять выше цели
-			Vector3 directionToTarget = new Vector3(turretGun.forward.x, 0, turretGun.forward.z) * d
-			                            + new Vector3(0, targetingPosition.y, 0) 
-			                            - new Vector3(0, turretGun.position.y, 0);
-			Quaternion rotateQuaternionGun = Quaternion.LookRotation(directionToTarget);
-			float angleGun = Quaternion.Angle(turretGun.rotation, rotateQuaternionGun);
-			turretGun.rotation = Quaternion.Slerp(
-				turretGun.rotation,
-				rotateQuaternionGun,
-				Mathf.Min(1f, Time.deltaTime * rotationSpeed / angleGun)
-			);
 		}
 		
 		#endregion
+	}
+	
+	public enum TurretState
+	{
+		IDLE,
+		ATTACK
 	}
 }
