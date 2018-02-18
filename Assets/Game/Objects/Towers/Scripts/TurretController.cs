@@ -39,7 +39,7 @@ namespace Game
 		protected enum TurretState
 		{
 			Idle,		//состояние покоя
-			Atack,		//цель найдена, атакуем
+			Attack,		//цель найдена, атакуем
 		}
 		//начальное и текущее состояние
 		protected TurretState state = TurretState.Idle;
@@ -58,8 +58,8 @@ namespace Game
 			sqrVisionRadius = visionRadius * visionRadius;			
 			
 			stateMachine = new StateMachine<TurretState>();
-			stateMachine.AddState(TurretState.Idle);
-			stateMachine.AddState(TurretState.Atack, null, AttackUpdate);
+			stateMachine.AddState(TurretState.Idle, null, IdleOnUpdate);
+			stateMachine.AddState(TurretState.Attack, null, AttackOnUpdate);
 			stateMachine.CurrentState = TurretState.Idle;
 
 			monsters = new List<Monster>();
@@ -67,16 +67,11 @@ namespace Game
 
 		public virtual void Update() {
 
-//			if (Time.time - lastSearchTime >= searchTimeDelay)
-//			{
-//				SearchTarget();
-//			}
-			
 			stateMachine.Update();
 		}
 
 		public virtual void LateUpdate() {
-			if (stateMachine.CurrentState == TurretState.Atack)
+			if (stateMachine.CurrentState == TurretState.Attack)
 			{
 				//В конце каждого кадра высчитываем скорость цели
 				targetSpeed = (target.position - previousTargetPosition) / Time.deltaTime;
@@ -99,7 +94,7 @@ namespace Game
 			//yield return null;
 
 			//Переводим турель в состоянии атаки
-			state = TurretState.Atack;
+			state = TurretState.Attack;
 			//yield return null;
 		}
 
@@ -166,9 +161,9 @@ namespace Game
 			for (int i = 0; i < monsters.Count; i++)
 			{
 				Vector3 monsterPositionBeforeShoot = monsters[i].GetSpeed() * timeToNextShot + monsters[i].transform.position;
-				Vector3 targetingPosition = CalculateAimNew(monsterPositionBeforeShoot, monsters[i].GetSpeed());
+				Vector3 advance = CalculateAdvance(monsterPositionBeforeShoot, monsters[i].GetSpeed());
 
-				if (Vector3.Distance(transform.position, targetingPosition) <= visionRadius)
+				if (Vector3.Distance(transform.position, advance) <= visionRadius)
 				{
 					target = monsters[i].transform;
 					break;
@@ -176,23 +171,24 @@ namespace Game
 			}
 
 			this.target = target;
-			if (target != null && stateMachine.CurrentState != TurretState.Atack)
+			if (target != null)
 			{
-				stateMachine.CurrentState = TurretState.Atack;
+				if (stateMachine.CurrentState != TurretState.Attack)
+				{
+					stateMachine.CurrentState = TurretState.Attack;
+				}
+			}
+			else
+			{
+				stateMachine.CurrentState = TurretState.Idle;
 			}
 		}
 
-		private Vector3 CalculateAimNew(Vector3 monsterPosition, Vector3 monsterSpeed)
+		private Vector3 CalculateAdvance(Vector3 monsterPosition, Vector3 monsterSpeed)
 		{
-			Vector3 targetingPosition = monsterPosition;
-			
-//			for (int i = 0; i < 10; i++) {
-				float dist = (turretGun.position - targetingPosition).magnitude;
-				float timeToTarget = dist / projectileSpeed;
-				targetingPosition = targetingPosition + monsterSpeed * timeToTarget;
-//			}
-			
-			return targetingPosition;
+			float dist = (turretGun.position - monsterPosition).magnitude;
+			float timeToTarget = dist / projectileSpeed;
+			return monsterPosition + monsterSpeed * timeToTarget;
 		}
 		
 		protected virtual Vector3 CalculateAim() {
@@ -212,36 +208,25 @@ namespace Game
 			return targetingPosition;
 		}
 
-		private void SearchTarget()
+		private void IdleOnUpdate()
 		{
-			//Ближайшая цель, попавшая в радиус обзора
-			Transform closest = null;
-			GameObject[] targets = GameObject.FindGameObjectsWithTag(enemyTag);
-			//Квадрат радиуса обзора, это значение потребуется при поиске ближайшей цели
-			float distance = sqrVisionRadius;
-			foreach (GameObject go in targets)
-			{
-				//Находим расстояние между турелью и предполагаемой целью
-				Vector3 diff = go.transform.position - transform.position;
-				//С точки зрения производительности быстрее сравнить квадраты расстояний,
-				//чем делать лишнюю операцию извлечения квадратного корня
-				float curDistance = diff.sqrMagnitude;
-				//если найдена цель в радиусе поражения, то запоминаем её
-				if (curDistance < distance)
-				{
-					closest = go.transform;
-					distance = curDistance;
-				}
-			}
-			target = closest;
-
-			if (target != null && stateMachine.CurrentState != TurretState.Atack)
-			{
-				stateMachine.CurrentState = TurretState.Atack;
-			}
+			float angle = Quaternion.Angle(turretHead.localRotation, Quaternion.identity);
+			turretHead.localRotation = Quaternion.Slerp(
+				turretHead.localRotation,
+				Quaternion.identity,
+				//высчитываем на сколько должна провернуться башня в течение одного кадра
+				Mathf.Min(1f, Time.deltaTime * rotationSpeed / angle)
+			);
+			
+			float angleGun = Quaternion.Angle(turretGun.rotation, Quaternion.identity);
+			turretGun.rotation = Quaternion.Slerp(
+				turretGun.rotation,
+				Quaternion.identity,
+				Mathf.Min(1f, Time.deltaTime * rotationSpeed / angleGun)
+			);
 		}
 
-		private void AttackUpdate()
+		private void AttackOnUpdate()
 		{
 			TurnTurret();
 
@@ -255,7 +240,7 @@ namespace Game
 					projectile,
 					turretGun.position,
 					Quaternion.FromToRotation (projectile.transform.forward, turretGun.forward)
-				) as GameObject;
+				);
 
 				BulletController projectileController = projectileItem.GetComponent<BulletController>();
 				projectileController.speed = projectileSpeed;
