@@ -11,6 +11,7 @@ public abstract class BaseTower : MonoBehaviour
 {
     #region Editor tweakable fields
     
+    [Tooltip("Периодичность стрельбы, выстрел/сек")]
     [SerializeField] protected float shootInterval = 0.5f;
     [SerializeField] protected float shootRange = 4f;
     [SerializeField] protected GameObject shootSocket;
@@ -47,7 +48,7 @@ public abstract class BaseTower : MonoBehaviour
         sphereCollider.radius = shootRange;
         
         pool = new Pool<BaseProjectile>(10,
-                                        () => BaseProjectile.Create(GetProjectilePrefab(), shootSocket.transform.position, projectilesParent.transform, this),
+                                        CreateProjectile,
                                         projectile => Destroy(projectile.gameObject),
                                         ProjectileWakeUp,
                                         projectile => projectile.gameObject.SetActive(false));
@@ -126,6 +127,12 @@ public abstract class BaseTower : MonoBehaviour
     protected abstract bool CheckDistance(Monster monster);
 
     protected abstract BaseProjectile GetProjectilePrefab();
+
+    protected virtual BaseProjectile CreateProjectile()
+    {
+        return BaseProjectile.Create(GetProjectilePrefab(), shootSocket.transform.position, projectilesParent.transform,
+                                     this);
+    }
 
     #endregion
 }
