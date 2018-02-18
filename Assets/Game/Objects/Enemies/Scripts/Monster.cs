@@ -23,6 +23,10 @@ namespace Game
         
         private int currentHealth;
 
+        // used for speed calculation
+        private Vector3 updatePosition;
+        private Vector3 lateUpdatePosition;
+
         #endregion
 
         #region Properties
@@ -44,6 +48,8 @@ namespace Game
 
         private void Update()
         {
+            updatePosition = transform.position;
+            
             if (Vector3.Distance(transform.position, target) <= REACH_DISTANCE)
             {
                 spawner.Release(this);
@@ -51,6 +57,11 @@ namespace Game
             }
 
             transform.Translate(GetVelocity());
+        }
+
+        private void LateUpdate()
+        {
+            lateUpdatePosition = transform.position;
         }
 
         private void OnTriggerEnter(Collider other)
@@ -89,6 +100,11 @@ namespace Game
                 translation = translation.normalized * m_speed;
             }
             return translation;
+        }
+
+        public Vector3 GetSpeed()
+        {
+            return (lateUpdatePosition - updatePosition) / Time.deltaTime;
         }
         
         #endregion

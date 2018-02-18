@@ -67,10 +67,10 @@ namespace Game
 
 		public virtual void Update() {
 
-			if (Time.time - lastSearchTime >= searchTimeDelay)
-			{
-				SearchTarget();
-			}
+//			if (Time.time - lastSearchTime >= searchTimeDelay)
+//			{
+//				SearchTarget();
+//			}
 			
 			stateMachine.Update();
 		}
@@ -103,6 +103,98 @@ namespace Game
 			//yield return null;
 		}
 
+		
+
+		//Для удобства - в окне редактора покажем радиус поражения турели и некоторые дополнительные данные
+		void OnDrawGizmos() 
+		{
+			Gizmos.DrawWireSphere(transform.position, visionRadius);
+			//Текущее направление пушки
+			Debug.DrawRay(turretGun.position, turretGun.forward * visionRadius, Color.blue);
+			//Направление от центра вращения пушки к цели, которое в итоге должна принять пушка турели
+			Debug.DrawRay(turretGun.position, (targetingPosition - turretGun.position), Color.yellow);
+			//Направление, в которое "смотрит" турель
+			Debug.DrawRay(turretHead.position, turretHead.forward * visionRadius, Color.red);
+		}
+		
+		#region Unity callbacks
+
+		private void OnTriggerEnter(Collider other)
+		{
+			Monster monster = other.GetComponent<Monster>();
+			if (monster != null)
+			{
+				monsters.Add(monster);
+				monster.Death += OnMonsterDeath;
+				SearchTargetNew();
+			}
+		}
+
+		private void OnTriggerExit(Collider other)
+		{
+			Monster monster = other.GetComponent<Monster>();
+			if (monster != null)
+			{
+				monsters.Remove(monster);
+				monster.Death -= OnMonsterDeath;
+				SearchTargetNew();
+			}
+		}
+
+		#endregion
+				
+		#region Private methods
+		
+		private void OnMonsterDeath(Monster monster)
+		{
+			monsters.Remove(monster);
+			SearchTargetNew();
+		}
+
+		private void SearchTargetNew()
+		{
+			// find, whether cannon is ready to shoot
+			float timeToNextShot = 0f;
+        
+			if (Time.time - lastShotTime < fireRate)
+			{
+				timeToNextShot = fireRate - (Time.time - lastShotTime);
+			}
+
+			Transform target = null;
+			
+			for (int i = 0; i < monsters.Count; i++)
+			{
+				Vector3 monsterPositionBeforeShoot = monsters[i].GetSpeed() * timeToNextShot + monsters[i].transform.position;
+				Vector3 targetingPosition = CalculateAimNew(monsterPositionBeforeShoot, monsters[i].GetSpeed());
+
+				if (Vector3.Distance(transform.position, targetingPosition) <= visionRadius)
+				{
+					target = monsters[i].transform;
+					break;
+				}
+			}
+
+			this.target = target;
+			if (target != null && stateMachine.CurrentState != TurretState.Atack)
+			{
+				stateMachine.CurrentState = TurretState.Atack;
+			}
+		}
+
+		private Vector3 CalculateAimNew(Vector3 monsterPosition, Vector3 monsterSpeed)
+		{
+			Vector3 targetingPosition = monsterPosition;
+			
+//			for (int i = 0; i < 10; i++) {
+				float dist = (turretGun.position - targetingPosition).magnitude;
+				float timeToTarget = dist / projectileSpeed;
+				targetingPosition = targetingPosition + monsterSpeed * timeToTarget;
+//			}
+			
+			return targetingPosition;
+		}
+		
 		protected virtual Vector3 CalculateAim() {
 			//По умолчанию турель стреляет прямо по цели, но, если цель движется, то нужно высчитать точку,
 			//которая находится перед движущейся целью и по которой будет стрелять турель.
@@ -119,23 +211,6 @@ namespace Game
 
 			return targetingPosition;
 		}
-
-		//Для удобства - в окне редактора покажем радиус поражения турели и некоторые дополнительные данные
-		void OnDrawGizmos() 
-		{
-			Gizmos.DrawWireSphere(transform.position, visionRadius);
-			if (Application.isPlaying && stateMachine.CurrentState == TurretState.Atack) 
-			{
-				//Текущее направление пушки
-				Debug.DrawRay(turretGun.position, turretGun.forward * visionRadius, Color.blue);
-				//Направление от центра вращения пушки к цели, которое в итоге должна принять пушка турели
-				Debug.DrawRay(turretGun.position, (targetingPosition - turretGun.position), Color.yellow);
-				//Направление, в которое "смотрит" турель
-				Debug.DrawRay(turretHead.position, turretHead.forward * visionRadius, Color.red);
-			}
-		}
-				
-		#region Private methods
 
 		private void SearchTarget()
 		{
